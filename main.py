@@ -1,103 +1,73 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Salud 360 - Evolution Dashboard", layout="wide")
+# --- CONFIGURACIÓN ---
+st.set_page_config(page_title="Salud 360", layout="wide")
 
-# --- COLORES CORPORATIVOS ---
-C_AZUL = "#223A76"
-C_AZUL_C = "#72B7E2"
-C_VERDE = "#27AE60"
-C_ROJO = "#E74C3C"
-C_NARANJA = "#F39C12"
-
-# --- ESTILO CSS PARA BORDES REDONDEADOS (LOOK APP) ---
+# Estilos
 st.markdown("""
     <style>
     .main { background-color: #F7F9FC; }
-    div[data-testid="stMetricValue"] { color: #223A76; font-size: 32px; }
-    .stPlotlyChart { border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    [data-testid="stMetricValue"] { color: #223A76; font-size: 32px; }
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown(f"<h1 style='text-align: center; color: {C_AZUL}; font-family: sans-serif;'>⚡ SALUD 360: DASHBOARD EVOLUCIÓN</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #6B7280;'>Análisis integral de datos - Hoja: MAKE</p>", unsafe_allow_html=True)
+st.title("💎 SALUD 360: DASHBOARD EVOLUCIÓN")
 
-# --- CONEXIÓN DE DATOS ---
-# Usamos el ID de tu sheet y el GID de la hoja MAKE
+# --- CONEXIÓN ---
 SHEET_ID = "1IryC88kzy0mZHjwYgCkoGJ8vEyVRcP2ecI5RL2qhMFM"
 GID = "1724629829"
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-@st.cache_data(ttl=600) # Se actualiza cada 10 min
+@st.cache_data(ttl=60)
 def load_data():
+    # Leemos el CSV y forzamos que no use la primera fila como nombres si da error
     data = pd.read_csv(url)
     return data
 
 try:
     df = load_data()
     
-    # --- FILA 1: KPIs CLAVE (Métricas de hoy) ---
-    st.write("### 📍 Estado Actual")
-    c1, c2, c3, c4, c5 = st.columns(5)
+    # --- MAGIA: Renombramos las columnas por su LETRA de Excel ---
+    # Esto hace que no importe qué nombre tengan en el Excel
+    def col_name(n):
+        res = ""
+        while n >= 0:
+            res = chr(n % 26 + 65) + res
+            n = n // 26 - 1
+        return res
     
-    # Tomamos el último valor registrado (Fila más reciente)
+    df.columns = [col_name(i) for i in range(len(df.columns))]
+
+    # --- DATOS ÚLTIMA FILA ---
     last_row = df.iloc[-1]
-    
-    c1.metric("BIENESTAR GLOBAL", f"{last_row['AX']:.1f}/10")
-    c2.metric("PASOS", f"{int(last_row['T']):,}")
-    c3.metric("SUEÑO (H)", f"{last_row['AJ']:.1f}h")
-    c4.metric("ESTRÉS", f"{last_row['H']}/10", delta_color="inverse")
-    c5.metric("DOLOR", f"{last_row['I']}/10", delta_color="inverse")
+
+    # --- KPIs ---
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("BIENESTAR GLOBAL", f"{last_row['AX']}")
+    c2.metric("PASOS", f"{last_row['T']}")
+    c3.metric("ESTRÉS", f"{last_row['H']}/10")
+    c4.metric("DOLOR", f"{last_row['I']}/10")
 
     st.divider()
 
-    # --- FILA 2: GRÁFICOS DE EVOLUCIÓN ---
-    col_a, col_b = st.columns(2)
+    # --- GRÁFICOS ---
+    col_left, col_right = st.columns(2)
 
-    with col_a:
-        st.write("#### 📈 Bienestar Global (Evolución)")
-        fig_bw = px.area(df, x='B', y='AX', 
-                         color_discrete_sequence=[C_AZUL],
-                         labels={'AX': 'Puntos', 'B': 'Día'})
-        fig_bw.update_layout(margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_bw, use_container_width=True)
+    with col_left:
+        st.subheader("📈 Evolución Bienestar")
+        fig1 = px.area(df, x='B', y='AX', color_discrete_sequence=["#223A76"])
+        st.plotly_chart(fig1, use_container_width=True)
 
-    with col_b:
-        st.write("#### 🧠 Estrés vs 💥 Dolor")
-        fig_corr = px.line(df, x='B', y=['H', 'I'], 
-                          color_discrete_map={'H': C_ROJO, 'I': C_NARANJA},
-                          labels={'value': 'Nivel', 'B': 'Día', 'variable': 'Indicador'})
-        fig_corr.update_traces(line=dict(width=3))
-        st.plotly_chart(fig_corr, use_container_width=True)
+    with col_right:
+        st.subheader("🧠 Estrés (Rojo) vs Dolor (Naranja)")
+        fig2 = px.line(df, x='B', y=['H', 'I'], color_discrete_map={'H': '#E74C3C', 'I': '#F39C12'})
+        st.plotly_chart(fig2, use_container_width=True)
 
-    # --- FILA 3: ACTIVIDAD Y NUTRICIÓN ---
-    col_c, col_d = st.columns(2)
-
-    with col_c:
-        st.write("#### 👟 Actividad Física (Cómputo /10)")
-        fig_act = px.bar(df, x='B', y='AQ', color_discrete_sequence=[C_VERDE])
-        st.plotly_chart(fig_act, use_container_width=True)
-
-    with col_d:
-        st.write("#### 🍎 Resumen Nutrición (Checks cumplidos)")
-        # Calculamos la media de cumplimiento de las columnas J a S
-        nutri_cols = ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S']
-        # Convertimos a numérico por si acaso hay errores en el sheet
-        df_nutri_clean = df[nutri_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
-        nutri_stats = df_nutri_clean.mean() * 100
-        
-        fig_nutri = px.bar(x=nutri_stats.values, y=nutri_stats.index, orientation='h',
-                          color_discrete_sequence=[C_AZUL_C],
-                          labels={'x': '% Cumplimiento', 'y': 'Hábito'})
-        st.plotly_chart(fig_nutri, use_container_width=True)
-
-    # --- NOTAS DEL DÍA ---
-    st.write("#### 📝 Diario de Notas")
-    st.dataframe(df[['B', 'AE']].sort_values(by='B', ascending=False).dropna(), use_container_width=True)
+    st.subheader("📝 Notas Recientes")
+    st.table(df[['B', 'AE']].tail(5))
 
 except Exception as e:
-    st.error(f"⚠️ ¡Opps! Hay un error con los datos: {e}")
-    st.info("Asegúrate de que en Google Sheets hayas ido a 'Archivo' > 'Compartir' > 'Compartir con otros' y hayas puesto 'Cualquier persona con el enlace puede VER'.")
+    st.error(f"Error al leer las columnas. Detalles: {e}")
+    st.info("Revisa que la hoja 'MAKE' tenga datos y que el enlace sea público.")
