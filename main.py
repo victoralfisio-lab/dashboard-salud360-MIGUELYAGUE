@@ -71,36 +71,46 @@ try:
     st.markdown("### 📍 ESTADO ACTUAL")
     k1, k2, k3, k4 = st.columns(4)
 
+    # Función de seguridad para convertir a número y evitar el error 'f'
+    def to_num(val):
+        try:
+            return float(pd.to_numeric(val, errors='coerce'))
+        except:
+            return 0.0
+
     # TARJETA 1: BIENESTAR (AX)
     with k1:
+        val_ax = to_num(ultima_fila['AX'])
         st.markdown(f"""
             <div class="kpi-card" style="border-left-color: {C_AZUL};">
                 <p class="kpi-title">🌟 BIENESTAR GLOBAL</p>
-                <p class="kpi-value">{ultima_fila['AX']:.1f} <span class="kpi-unit">/ 10</span></p>
+                <p class="kpi-value">{val_ax:.1f} <span class="kpi-unit">/ 10</span></p>
             </div>
         """, unsafe_allow_html=True)
 
     # TARJETA 2: PASOS (T)
     with k2:
+        val_pasos = to_num(ultima_fila['T'])
         st.markdown(f"""
             <div class="kpi-card" style="border-left-color: {C_VERDE};">
                 <p class="kpi-title">👟 PASOS DIARIOS</p>
-                <p class="kpi-value">{int(ultima_fila['T']):,}</p>
+                <p class="kpi-value">{int(val_pasos):,}</p>
             </div>
         """, unsafe_allow_html=True)
 
     # TARJETA 3: SUEÑO (AJ)
     with k3:
+        val_sueño = to_num(ultima_fila['AJ'])
         st.markdown(f"""
             <div class="kpi-card" style="border-left-color: {C_AZUL_C};">
                 <p class="kpi-title">🌙 HORAS SUEÑO</p>
-                <p class="kpi-value">{ultima_fila['AJ']:.1f} <span class="kpi-unit">h</span></p>
+                <p class="kpi-value">{val_sueño:.1f} <span class="kpi-unit">h</span></p>
             </div>
         """, unsafe_allow_html=True)
 
     # TARJETA 4: DOLOR (I)
     with k4:
-        val_dolor = float(ultima_fila['I'])
+        val_dolor = to_num(ultima_fila['I'])
         color_dol = C_ROJO if val_dolor > 4 else C_NARANJA
         st.markdown(f"""
             <div class="kpi-card" style="border-left-color: {color_dol};">
